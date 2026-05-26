@@ -19,12 +19,21 @@ app.use(morgan(requestLogger));
 app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
+app.get("/health", (_req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
 app.use("/api/colleges", collegeRoutes);
 app.use("/api/colleges", reviewRoutes);
 app.use("/api/score", scoreRoutes);
 app.use("/api/shortlist", shortlistRoutes);
 app.use("/api/predictor", predictorRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/colleges", collegeRoutes);
+app.use("/colleges", reviewRoutes);
+app.use("/score", scoreRoutes);
+app.use("/shortlist", shortlistRoutes);
+app.use("/predictor", predictorRoutes);
+app.use("/admin", adminRoutes);
 app.use((_req, res) => {
     res.status(404).json({ error: "Not Found" });
 });

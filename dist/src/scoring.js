@@ -41,11 +41,13 @@ export function scoreColleges(colleges, weights) {
         const fees = normalizeLowerIsBetter(college.annual_fee, feeRange);
         const location = 0.5;
         const weightedScore = placement * weights.placement + fees * weights.fees + location * weights.location;
+        const score = roundOneDecimal(weightedScore * 100);
         return {
             college_id: college.college_id,
             name: college.name,
             city: college.city,
-            final_score: roundOneDecimal(weightedScore * 100),
+            score,
+            final_score: score,
             dimension_scores: {
                 placement: roundFourDecimals(placement),
                 fees: roundFourDecimals(fees),
