@@ -25,6 +25,10 @@ const addShortlistSchema = z.object({
   college_id: z.number().int().positive(),
 });
 
+const shortlistHeaderSchema = z.object({
+  "x-session-token": z.string().trim().min(1),
+});
+
 const sessionParamSchema = z.object({
   session_id: z.string().trim().min(1),
 });
@@ -79,9 +83,12 @@ async function getShortlistSummaries(collegeIds: number[]): Promise<ShortlistCol
 router.post("/", async (req, res, next) => {
   try {
     const sessionToken = req.header("x-session-token");
+    const headers = shortlistHeaderSchema.safeParse({
+      "x-session-token": sessionToken,
+    });
 
-    if (!sessionToken) {
-      res.status(400).json({ error: "x-session-token header is required" });
+    if (!headers.success) {
+      res.status(400).json({ errors: { "x-session-token": "x-session-token header is required" } });
       return;
     }
 
@@ -105,9 +112,9 @@ router.post("/", async (req, res, next) => {
       return;
     }
 
-    const shortlist = shortlists.get(sessionToken) ?? new Set<number>();
+    const shortlist = shortlists.get(headers.data["x-session-token"]) ?? new Set<number>();
     shortlist.add(parsed.data.college_id);
-    shortlists.set(sessionToken, shortlist);
+    shortlists.set(headers.data["x-session-token"], shortlist);
 
     res.json(await getShortlistSummaries([...shortlist]));
   } catch (error) {

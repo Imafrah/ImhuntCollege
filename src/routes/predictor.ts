@@ -12,13 +12,13 @@ const predictorParamsSchema = z.object({
 });
 
 const predictorQuerySchema = z.object({
-  exam: z.enum(["JEE", "CUET"]),
+  exam: z.string().trim().min(1),
   percentile: z.coerce.number().min(0),
   category: z.enum(["GENERAL", "OBC", "SC", "ST"]),
 });
 
-function examWhereInput(exam: "JEE" | "CUET"): Prisma.StringFilter<"AdmissionCutoff"> {
-  if (exam === "JEE") {
+function examWhereInput(exam: string): Prisma.StringFilter<"AdmissionCutoff"> {
+  if (exam.toUpperCase() === "JEE") {
     return {
       contains: "JEE",
       mode: "insensitive",
@@ -26,7 +26,7 @@ function examWhereInput(exam: "JEE" | "CUET"): Prisma.StringFilter<"AdmissionCut
   }
 
   return {
-    equals: "CUET",
+    equals: exam,
     mode: "insensitive",
   };
 }

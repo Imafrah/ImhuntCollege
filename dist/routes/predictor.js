@@ -6,19 +6,19 @@ const predictorParamsSchema = z.object({
     college_id: z.coerce.number().int().positive(),
 });
 const predictorQuerySchema = z.object({
-    exam: z.enum(["JEE", "CUET"]),
+    exam: z.string().trim().min(1),
     percentile: z.coerce.number().min(0),
     category: z.enum(["GENERAL", "OBC", "SC", "ST"]),
 });
 function examWhereInput(exam) {
-    if (exam === "JEE") {
+    if (exam.toUpperCase() === "JEE") {
         return {
             contains: "JEE",
             mode: "insensitive",
         };
     }
     return {
-        equals: "CUET",
+        equals: exam,
         mode: "insensitive",
     };
 }

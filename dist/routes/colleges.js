@@ -1,18 +1,58 @@
 import { CollegeType } from "@prisma/client";
 import { Router } from "express";
 import { performance } from "node:perf_hooks";
+import { z } from "zod";
 import { prisma } from "../db.js";
 const router = Router();
-const collegeTypes = new Set(Object.values(CollegeType));
-const sortOptions = new Set(["nirf_rank", "avg_pkg", "fees"]);
-function firstQueryValue(value) {
-    if (typeof value === "string") {
-        return value;
-    }
-    if (Array.isArray(value) && typeof value[0] === "string") {
+function firstValue(value) {
+    if (Array.isArray(value)) {
         return value[0];
     }
-    return undefined;
+    return value;
+}
+const optionalTrimmedString = z.preprocess(firstValue, z
+    .string()
+    .trim()
+    .min(1)
+    .optional());
+const listQuerySchema = z.object({
+    q: optionalTrimmedString,
+    stream: optionalTrimmedString,
+    city: optionalTrimmedString,
+    type: z.preprocess((value) => {
+        const first = firstValue(value);
+        return typeof first === "string" ? first.trim().toUpperCase() : first;
+    }, z.nativeEnum(CollegeType).optional()),
+    fees_max: z.preprocess(firstValue, z.coerce.number().int().positive().optional()),
+    sort: z.preprocess(firstValue, z.enum(["nirf_rank", "avg_pkg", "fees"]).optional()),
+});
+const compareQuerySchema = z.object({
+    ids: z.preprocess(firstValue, z.string().trim().min(1)),
+});
+const collegeParamsSchema = z.object({
+    id: z.coerce.number().int().positive(),
+});
+function toFieldErrors(error) {
+    return error.issues.reduce((errors, issue) => {
+        const field = String(issue.path[0] ?? "request");
+        if (!errors[field]) {
+            errors[field] = issue.message;
+        }
+        return errors;
+    }, {});
+}
+function parseCompareIds(rawIds) {
+    const ids = rawIds.split(",").map((id) => Number(id.trim()));
+    if (ids.some((id) => !Number.isInteger(id) || id <= 0)) {
+        return null;
+    }
+    return {
+        ids: [...new Set(ids)],
+        requestedCount: ids.length,
+    };
+}
+function logResponseTime(path, responseTimeMs) {
+    process.stdout.write(`${path} ${responseTimeMs}ms\n`);
 }
 function average(values) {
     if (values.length === 0) {
@@ -59,25 +99,12 @@ function highestWinner(colleges, getValue) {
 router.get("/", async (req, res, next) => {
     const startedAt = performance.now();
     try {
-        const q = firstQueryValue(req.query.q)?.trim();
-        const stream = firstQueryValue(req.query.stream)?.trim();
-        const city = firstQueryValue(req.query.city)?.trim();
-        const type = firstQueryValue(req.query.type)?.trim().toUpperCase();
-        const feesMaxRaw = firstQueryValue(req.query.fees_max);
-        const sort = firstQueryValue(req.query.sort);
-        const feesMax = feesMaxRaw ? Number(feesMaxRaw) : undefined;
-        if (type && !collegeTypes.has(type)) {
-            res.status(400).json({ error: "type must be GOVT, PRIVATE, or DEEMED" });
+        const parsed = listQuerySchema.safeParse(req.query);
+        if (!parsed.success) {
+            res.status(400).json({ errors: toFieldErrors(parsed.error) });
             return;
         }
-        if (feesMaxRaw && (!Number.isFinite(feesMax) || !Number.isInteger(feesMax))) {
-            res.status(400).json({ error: "fees_max must be a valid integer" });
-            return;
-        }
-        if (sort && !sortOptions.has(sort)) {
-            res.status(400).json({ error: "sort must be nirf_rank, avg_pkg, or fees" });
-            return;
-        }
+        const { q, stream, city, type, fees_max: feesMax, sort } = parsed.data;
         const colleges = await prisma.college.findMany({
             where: {
                 ...(q
@@ -90,7 +117,7 @@ router.get("/", async (req, res, next) => {
                     : {}),
                 ...(stream ? { streams: { has: stream } } : {}),
                 ...(city ? { city: { equals: city, mode: "insensitive" } } : {}),
-                ...(type ? { type: type } : {}),
+                ...(type ? { type } : {}),
                 ...(feesMax !== undefined ? { courseFees: { some: { annual_fee: { lte: feesMax } } } } : {}),
             },
             include: {
@@ -120,13 +147,20 @@ router.get("/", async (req, res, next) => {
             minCourseFee: college.courseFees[0] ?? null,
         }));
         if (sort === "avg_pkg") {
-            summaries.sort((left, right) => (right.latestPlacement?.avg_pkg ?? -1) - (left.latestPlacement?.avg_pkg ?? -1));
+            summaries.sort((left, right) => {
+                const scoreDiff = (right.latestPlacement?.avg_pkg ?? -1) - (left.latestPlacement?.avg_pkg ?? -1);
+                return scoreDiff === 0 ? left.id - right.id : scoreDiff;
+            });
         }
         if (sort === "fees") {
-            summaries.sort((left, right) => (left.minCourseFee?.annual_fee ?? Number.MAX_SAFE_INTEGER) - (right.minCourseFee?.annual_fee ?? Number.MAX_SAFE_INTEGER));
+            summaries.sort((left, right) => {
+                const feeDiff = (left.minCourseFee?.annual_fee ?? Number.MAX_SAFE_INTEGER) - (right.minCourseFee?.annual_fee ?? Number.MAX_SAFE_INTEGER);
+                return feeDiff === 0 ? left.id - right.id : feeDiff;
+            });
         }
         const responseTimeMs = Number((performance.now() - startedAt).toFixed(2));
-        console.log(`GET /api/colleges ${responseTimeMs}ms`);
+        res.setHeader("Server-Timing", `app;dur=${responseTimeMs}`);
+        logResponseTime("GET /api/colleges", responseTimeMs);
         res.json(summaries);
     }
     catch (error) {
@@ -135,21 +169,21 @@ router.get("/", async (req, res, next) => {
 });
 router.get("/compare", async (req, res, next) => {
     try {
-        const idsParam = firstQueryValue(req.query.ids);
-        const ids = idsParam
-            ? idsParam
-                .split(",")
-                .map((id) => Number(id.trim()))
-                .filter(Number.isFinite)
-            : [];
-        if (ids.length === 0) {
-            res.status(400).json({ error: "ids query param is required" });
+        const parsed = compareQuerySchema.safeParse(req.query);
+        if (!parsed.success) {
+            res.status(400).json({ errors: toFieldErrors(parsed.error) });
             return;
         }
-        if (ids.length > 3) {
+        const parsedIds = parseCompareIds(parsed.data.ids);
+        if (!parsedIds || parsedIds.ids.length === 0) {
+            res.status(400).json({ errors: { ids: "ids must be comma-separated positive integers" } });
+            return;
+        }
+        if (parsedIds.requestedCount > 3) {
             res.status(400).json({ error: "compare supports a maximum of 3 colleges" });
             return;
         }
+        const { ids } = parsedIds;
         const colleges = await prisma.college.findMany({
             where: { id: { in: ids } },
             include: {
@@ -181,13 +215,13 @@ router.get("/compare", async (req, res, next) => {
 });
 router.get("/:id", async (req, res, next) => {
     try {
-        const id = Number(req.params.id);
-        if (!Number.isFinite(id)) {
-            res.status(400).json({ error: "id must be a valid number" });
+        const parsed = collegeParamsSchema.safeParse(req.params);
+        if (!parsed.success) {
+            res.status(400).json({ errors: toFieldErrors(parsed.error) });
             return;
         }
         const college = await prisma.college.findUnique({
-            where: { id },
+            where: { id: parsed.data.id },
             include: {
                 courseFees: { orderBy: [{ annual_fee: "asc" }, { course: "asc" }] },
                 placements: { orderBy: { year: "desc" } },

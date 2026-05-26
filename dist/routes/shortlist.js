@@ -6,6 +6,9 @@ const shortlists = new Map();
 const addShortlistSchema = z.object({
     college_id: z.number().int().positive(),
 });
+const shortlistHeaderSchema = z.object({
+    "x-session-token": z.string().trim().min(1),
+});
 const sessionParamSchema = z.object({
     session_id: z.string().trim().min(1),
 });
@@ -55,8 +58,11 @@ async function getShortlistSummaries(collegeIds) {
 router.post("/", async (req, res, next) => {
     try {
         const sessionToken = req.header("x-session-token");
-        if (!sessionToken) {
-            res.status(400).json({ error: "x-session-token header is required" });
+        const headers = shortlistHeaderSchema.safeParse({
+            "x-session-token": sessionToken,
+        });
+        if (!headers.success) {
+            res.status(400).json({ errors: { "x-session-token": "x-session-token header is required" } });
             return;
         }
         const parsed = addShortlistSchema.safeParse(req.body);
@@ -75,9 +81,9 @@ router.post("/", async (req, res, next) => {
             res.status(404).json({ error: "College not found" });
             return;
         }
-        const shortlist = shortlists.get(sessionToken) ?? new Set();
+        const shortlist = shortlists.get(headers.data["x-session-token"]) ?? new Set();
         shortlist.add(parsed.data.college_id);
-        shortlists.set(sessionToken, shortlist);
+        shortlists.set(headers.data["x-session-token"], shortlist);
         res.json(await getShortlistSummaries([...shortlist]));
     }
     catch (error) {

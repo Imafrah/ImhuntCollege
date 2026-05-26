@@ -5,10 +5,15 @@ const router = Router();
 const reviewParamsSchema = z.object({
     id: z.coerce.number().int().positive(),
 });
+const authorizationHeaderSchema = z.object({
+    authorization: z.string().trim().min(1),
+});
 router.use((req, res, next) => {
-    const authorization = req.header("authorization");
+    const headers = authorizationHeaderSchema.safeParse({
+        authorization: req.header("authorization"),
+    });
     const expectedAuthorization = process.env.ADMIN_API_KEY ? `Bearer ${process.env.ADMIN_API_KEY}` : undefined;
-    if (!expectedAuthorization || authorization !== expectedAuthorization) {
+    if (!headers.success || !expectedAuthorization || headers.data.authorization !== expectedAuthorization) {
         res.status(401).json({ error: "Unauthorized" });
         return;
     }

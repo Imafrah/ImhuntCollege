@@ -534,13 +534,6 @@ async function main() {
     throw new Error('DATABASE_URL is required. Set it in .env or run: $env:DATABASE_URL="postgresql://..." ; npx prisma db seed');
   }
 
-  const collegeIds = colleges.map((college) => college.id);
-
-  await prisma.review.deleteMany({ where: { college_id: { in: collegeIds } } });
-  await prisma.admissionCutoff.deleteMany({ where: { college_id: { in: collegeIds } } });
-  await prisma.placementStat.deleteMany({ where: { college_id: { in: collegeIds } } });
-  await prisma.courseFee.deleteMany({ where: { college_id: { in: collegeIds } } });
-
   for (const college of colleges) {
     await prisma.college.upsert({
       where: { id: college.id },
@@ -569,29 +562,68 @@ async function main() {
       },
     });
 
-    await prisma.courseFee.createMany({
-      data: college.fees.map((fee) => ({
-        college_id: college.id,
-        course: fee.course,
-        degree: fee.degree,
-        annual_fee: fee.annual_fee,
-      })),
-    });
+    for (const fee of college.fees) {
+      await prisma.courseFee.upsert({
+        where: {
+          college_id_course_degree: {
+            college_id: college.id,
+            course: fee.course,
+            degree: fee.degree,
+          },
+        },
+        update: {
+          annual_fee: fee.annual_fee,
+        },
+        create: {
+          college_id: college.id,
+          course: fee.course,
+          degree: fee.degree,
+          annual_fee: fee.annual_fee,
+        },
+      });
+    }
 
-    await prisma.placementStat.createMany({
-      data: college.placements.map((placement) => ({
-        college_id: college.id,
-        year: placement.year,
-        avg_pkg: placement.avg_pkg,
-        max_pkg: placement.max_pkg,
-        placement_pct: placement.placement_pct,
-        top_recruiters: placement.top_recruiters,
-      })),
-    });
+    for (const placement of college.placements) {
+      await prisma.placementStat.upsert({
+        where: {
+          college_id_year: {
+            college_id: college.id,
+            year: placement.year,
+          },
+        },
+        update: {
+          avg_pkg: placement.avg_pkg,
+          max_pkg: placement.max_pkg,
+          placement_pct: placement.placement_pct,
+          top_recruiters: placement.top_recruiters,
+        },
+        create: {
+          college_id: college.id,
+          year: placement.year,
+          avg_pkg: placement.avg_pkg,
+          max_pkg: placement.max_pkg,
+          placement_pct: placement.placement_pct,
+          top_recruiters: placement.top_recruiters,
+        },
+      });
+    }
 
-    await prisma.admissionCutoff.createMany({
-      data: buildCutoffs(college),
-    });
+    for (const cutoff of buildCutoffs(college)) {
+      await prisma.admissionCutoff.upsert({
+        where: {
+          college_id_exam_year_category: {
+            college_id: cutoff.college_id,
+            exam: cutoff.exam,
+            year: cutoff.year,
+            category: cutoff.category,
+          },
+        },
+        update: {
+          cutoff_value: cutoff.cutoff_value,
+        },
+        create: cutoff,
+      });
+    }
   }
 }
 

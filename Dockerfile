@@ -8,10 +8,9 @@ COPY package*.json ./
 RUN npm ci --include=dev
 
 COPY prisma ./prisma
-RUN npx prisma generate
-
 COPY . .
 
+RUN npx prisma generate
 RUN npx tsc
 
 EXPOSE 3000
