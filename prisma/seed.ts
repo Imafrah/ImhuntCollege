@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { PrismaClient, CollegeType, CutoffCategory } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -529,6 +530,10 @@ function buildCutoffs(college: CollegeSeed) {
 }
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL is required. Set it in .env or run: $env:DATABASE_URL="postgresql://..." ; npx prisma db seed');
+  }
+
   const collegeIds = colleges.map((college) => college.id);
 
   await prisma.review.deleteMany({ where: { college_id: { in: collegeIds } } });
