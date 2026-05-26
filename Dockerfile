@@ -5,6 +5,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --include=dev
 
+RUN ls node_modules/.bin/ | grep tsc
+RUN npx tsc --version
+
 COPY prisma ./prisma
 RUN npx prisma generate
 
