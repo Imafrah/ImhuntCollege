@@ -1,4 +1,4 @@
-﻿-- CreateEnum
+-- CreateEnum
 CREATE TYPE "CollegeType" AS ENUM ('GOVT', 'PRIVATE', 'DEEMED');
 
 -- CreateEnum

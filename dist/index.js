@@ -10,13 +10,13 @@ import reviewRoutes from "./routes/reviews.js";
 import scoreRoutes from "./routes/score.js";
 import shortlistRoutes from "./routes/shortlist.js";
 const app = express();
-const port = Number(process.env.PORT ?? 4000);
+const port = Number(process.env.PORT ?? 3000);
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
-app.get("/health", (_req, res) => {
-    res.json({ status: "ok" });
+app.get("/api/health", (_req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 app.use("/api/colleges", collegeRoutes);
 app.use("/api/colleges", reviewRoutes);
