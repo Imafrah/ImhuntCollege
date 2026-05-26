@@ -10,9 +10,7 @@ RUN npx prisma generate
 
 COPY . .
 
-RUN npm run build
-
-RUN npm prune --production
+RUN npx tsc
 
 EXPOSE 3000
 
