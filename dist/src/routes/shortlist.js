@@ -2,7 +2,6 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db.js";
 const router = Router();
-const shortlists = new Map();
 const addShortlistSchema = z.object({
     college_id: z.number().int().positive(),
 });
@@ -55,6 +54,20 @@ async function getShortlistSummaries(collegeIds) {
         minCourseFee: college.courseFees[0] ?? null,
     }));
 }
+async function getSessionCollegeIds(sessionId) {
+    const items = await prisma.shortlistItem.findMany({
+        where: {
+            session_id: sessionId,
+        },
+        orderBy: {
+            createdAt: "asc",
+        },
+        select: {
+            college_id: true,
+        },
+    });
+    return items.map((item) => item.college_id);
+}
 router.post("/", async (req, res, next) => {
     try {
         const sessionToken = req.header("x-session-token");
@@ -81,10 +94,26 @@ router.post("/", async (req, res, next) => {
             res.status(404).json({ error: "College not found" });
             return;
         }
-        const shortlist = shortlists.get(headers.data["x-session-token"]) ?? new Set();
-        shortlist.add(parsed.data.college_id);
-        shortlists.set(headers.data["x-session-token"], shortlist);
-        res.json(await getShortlistSummaries([...shortlist]));
+        const sessionId = headers.data["x-session-token"];
+        await prisma.shortlistSession.upsert({
+            where: { id: sessionId },
+            update: {},
+            create: { id: sessionId },
+        });
+        await prisma.shortlistItem.upsert({
+            where: {
+                session_id_college_id: {
+                    session_id: sessionId,
+                    college_id: parsed.data.college_id,
+                },
+            },
+            update: {},
+            create: {
+                session_id: sessionId,
+                college_id: parsed.data.college_id,
+            },
+        });
+        res.json(await getShortlistSummaries(await getSessionCollegeIds(sessionId)));
     }
     catch (error) {
         next(error);
@@ -100,12 +129,15 @@ router.get("/:session_id", async (req, res, next) => {
             });
             return;
         }
-        const shortlist = shortlists.get(parsed.data.session_id);
-        if (!shortlist) {
+        const session = await prisma.shortlistSession.findUnique({
+            where: { id: parsed.data.session_id },
+            select: { id: true },
+        });
+        if (!session) {
             res.status(404).json({ error: "Session not found" });
             return;
         }
-        res.json(await getShortlistSummaries([...shortlist]));
+        res.json(await getShortlistSummaries(await getSessionCollegeIds(parsed.data.session_id)));
     }
     catch (error) {
         next(error);

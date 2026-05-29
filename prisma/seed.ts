@@ -518,13 +518,19 @@ const colleges: CollegeSeed[] = [
 ];
 
 function buildCutoffs(college: CollegeSeed) {
-  return ([2023, 2024] as const).flatMap((year) =>
+  const cutoffValues = {
+    2022: Number((college.cutoffBase[2023] * 1.08).toFixed(2)),
+    2023: college.cutoffBase[2023],
+    2024: college.cutoffBase[2024],
+  };
+
+  return ([2022, 2023, 2024] as const).flatMap((year) =>
     Object.values(CutoffCategory).map((category) => ({
       college_id: college.id,
       exam: college.cutoffExam,
       year,
       category,
-      cutoff_value: Number((college.cutoffBase[year] * categoryMultiplier[category]).toFixed(2)),
+      cutoff_value: Number((cutoffValues[year] * categoryMultiplier[category]).toFixed(2)),
     })),
   );
 }

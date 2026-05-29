@@ -33,6 +33,13 @@ function predictProbability(percentile, cutoffs) {
     }
     return "low";
 }
+function estimateJeeRank(percentile) {
+    const estimatedApplicants = 1_200_000;
+    if (percentile < 0 || percentile > 100) {
+        return null;
+    }
+    return Math.max(1, Math.round(((100 - percentile) / 100) * estimatedApplicants));
+}
 router.get("/:college_id", async (req, res, next) => {
     try {
         const params = predictorParamsSchema.safeParse(req.params);
@@ -64,8 +71,16 @@ router.get("/:college_id", async (req, res, next) => {
             res.status(404).json({ error: "No cutoff data found for that exam/category combo" });
             return;
         }
+        const isJee = query.data.exam.toUpperCase() === "JEE";
         res.json({
             probability: predictProbability(query.data.percentile, cutoffs.map((cutoff) => cutoff.cutoff_value)),
+            rank_context: isJee
+                ? {
+                    exam: "JEE",
+                    estimated_rank: estimateJeeRank(query.data.percentile),
+                    assumption: "Approximation based on 12 lakh applicants",
+                }
+                : null,
             cutoff_context: cutoffs.map((cutoff) => ({
                 year: cutoff.year,
                 cutoff: cutoff.cutoff_value,

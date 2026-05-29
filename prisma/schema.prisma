@@ -27,7 +27,7 @@ enum ReviewStatus {
 }
 
 model College {
-  id            Int               @id @default(autoincrement())
+  id            Int         @id @default(autoincrement())
   name          String
   city          String
   state         String
@@ -37,27 +37,28 @@ model College {
   established   Int
   accreditation String
   website       String
-  createdAt     DateTime          @default(now())
+  createdAt     DateTime    @default(now())
 
-  courseFees    CourseFee[]
-  placements    PlacementStat[]
-  cutoffs       AdmissionCutoff[]
-  reviews       Review[]
+  courseFees     CourseFee[]
+  placements     PlacementStat[]
+  cutoffs        AdmissionCutoff[]
+  reviews        Review[]
+  shortlistItems ShortlistItem[]
 
   @@index([name, city])
 }
 
 model CourseFee {
-  id         Int     @id @default(autoincrement())
+  id         Int    @id @default(autoincrement())
   college_id Int
   course     String
   degree     String
   annual_fee Int
 
-  college    College @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  college College @relation(fields: [college_id], references: [id], onDelete: Cascade)
 
-  @@index([college_id])
   @@unique([college_id, course, degree])
+  @@index([college_id])
 }
 
 model PlacementStat {
@@ -69,10 +70,10 @@ model PlacementStat {
   placement_pct  Float
   top_recruiters String[]
 
-  college        College  @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  college College @relation(fields: [college_id], references: [id], onDelete: Cascade)
 
-  @@index([college_id])
   @@unique([college_id, year])
+  @@index([college_id])
 }
 
 model AdmissionCutoff {
@@ -83,10 +84,10 @@ model AdmissionCutoff {
   category     CutoffCategory
   cutoff_value Float
 
-  college      College        @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  college College @relation(fields: [college_id], references: [id], onDelete: Cascade)
 
-  @@index([college_id])
   @@unique([college_id, exam, year, category])
+  @@index([college_id])
 }
 
 model Review {
@@ -103,7 +104,29 @@ model Review {
   status           ReviewStatus @default(PENDING)
   createdAt        DateTime     @default(now())
 
-  college          College      @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  college College @relation(fields: [college_id], references: [id], onDelete: Cascade)
 
+  @@index([college_id])
+}
+
+model ShortlistSession {
+  id        String   @id
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items ShortlistItem[]
+}
+
+model ShortlistItem {
+  id         Int      @id @default(autoincrement())
+  session_id String
+  college_id Int
+  createdAt  DateTime @default(now())
+
+  session ShortlistSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  college College          @relation(fields: [college_id], references: [id], onDelete: Cascade)
+
+  @@unique([session_id, college_id])
+  @@index([session_id])
   @@index([college_id])
 }

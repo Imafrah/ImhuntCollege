@@ -3,6 +3,7 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
+import { openApiDocument } from "./openapi.js";
 import adminRoutes from "./routes/admin.js";
 import collegeRoutes from "./routes/colleges.js";
 import predictorRoutes from "./routes/predictor.js";
@@ -21,6 +22,37 @@ app.get("/api/health", (_req, res) => {
 });
 app.get("/health", (_req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+app.get("/api/openapi.json", (_req, res) => {
+    res.json(openApiDocument);
+});
+app.get("/openapi.json", (_req, res) => {
+    res.json(openApiDocument);
+});
+app.get("/api/docs", (_req, res) => {
+    res.type("html").send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CollegeHunt API Docs</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 32px; color: #111827; background: #ffffff; }
+      pre { white-space: pre-wrap; padding: 16px; border: 1px solid #d1d5db; border-radius: 6px; overflow: auto; }
+      a { color: #2563eb; }
+    </style>
+  </head>
+  <body>
+    <h1>CollegeHunt API Docs</h1>
+    <p>OpenAPI JSON is available at <a href="/api/openapi.json">/api/openapi.json</a>.</p>
+    <pre id="spec"></pre>
+    <script>
+      fetch("/api/openapi.json").then((res) => res.json()).then((spec) => {
+        document.getElementById("spec").textContent = JSON.stringify(spec, null, 2);
+      });
+    </script>
+  </body>
+</html>`);
 });
 app.use("/api/colleges", collegeRoutes);
 app.use("/api/colleges", reviewRoutes);
