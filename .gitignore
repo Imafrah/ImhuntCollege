@@ -1,1 +1,7 @@
-*.env.example
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+frontend/.next/
+frontend/node_modules/
