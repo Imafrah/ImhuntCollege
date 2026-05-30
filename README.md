@@ -34,13 +34,14 @@ npm run dev
 | App | Variable | Description |
 | --- | --- | --- |
 | Backend | `DATABASE_URL` | PostgreSQL connection string |
-| Backend | `PORT` | API port, defaults to `3000` |
+| Backend | `PORT` | API port, defaults to `4000` locally |
 | Backend | `ADMIN_API_KEY` | Bearer token for moderation routes |
 | Frontend | `NEXT_PUBLIC_API_URL` | Backend base URL |
 
 ## API
 
 Public backend: `https://imhuntcollege.onrender.com`
+Local backend: `http://localhost:4000`
 
 Main routes are available with and without `/api`, including:
 

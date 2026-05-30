@@ -11,7 +11,7 @@ export const openApiDocument: Record<string, unknown> = {
       description: "Production",
     },
     {
-      url: "http://localhost:3000/api",
+      url: "http://localhost:4000/api",
       description: "Local development",
     },
   ],

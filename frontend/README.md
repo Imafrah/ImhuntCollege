@@ -11,7 +11,7 @@ Open `http://localhost:3000`.
 
 | Name | Value |
 | --- | --- |
-| `NEXT_PUBLIC_API_URL` | `https://imhuntcollege.onrender.com` |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:4000` for local backend, or `https://imhuntcollege.onrender.com` for production |
 
 Copy `.env.local.example` to `.env.local` for local development.
 
@@ -23,4 +23,5 @@ Copy `.env.local.example` to `.env.local` for local development.
 
 ## API
 
-Backend API: `https://imhuntcollege.onrender.com`
+Local backend API: `http://localhost:4000`
+Production backend API: `https://imhuntcollege.onrender.com`

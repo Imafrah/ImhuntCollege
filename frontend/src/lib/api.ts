@@ -5,6 +5,10 @@ type ErrorResponse = {
   error?: string;
   message?: string;
   errors?: Record<string, string>;
+  details?: {
+    fieldErrors?: Record<string, string[]>;
+    formErrors?: string[];
+  };
 };
 
 async function getErrorMessage(response: Response): Promise<string> {
@@ -25,6 +29,14 @@ async function getErrorMessage(response: Response): Promise<string> {
       return Object.values(body.errors).join(", ");
     }
 
+    if (body.details?.fieldErrors) {
+      return Object.values(body.details.fieldErrors).flat().join(", ");
+    }
+
+    if (body.details?.formErrors?.length) {
+      return body.details.formErrors.join(", ");
+    }
+
     return fallback;
   } catch {
     return fallback;
@@ -36,13 +48,17 @@ export async function apiFetch<T>(
   options?: RequestInit,
 ): Promise<T> {
   const url = new URL(path, API_BASE_URL);
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 30_000);
+
   const response = await fetch(url, {
     ...options,
+    signal: options?.signal ?? controller.signal,
     headers: {
       "Content-Type": "application/json",
       ...options?.headers,
     },
-  });
+  }).finally(() => window.clearTimeout(timeout));
 
   if (!response.ok) {
     throw new Error(await getErrorMessage(response));

@@ -55,6 +55,11 @@ function streamParam(stream: CollegeFilters["stream"]) {
   return stream === "Medical" ? "Medicine" : stream;
 }
 
+function streamMatches(streams: string[], stream: string) {
+  const normalizedStream = stream === "Medical" ? "Medicine" : stream;
+  return streams.includes(normalizedStream);
+}
+
 function buildCollegeListPath(filters: CollegeFilters) {
   const params = new URLSearchParams();
   const stream = streamParam(filters.stream);
@@ -132,8 +137,8 @@ function personalizeColleges(
     }
 
     const streamMatchDiff =
-      Number(right.streams.includes(preferences.streamInterest)) -
-      Number(left.streams.includes(preferences.streamInterest));
+      Number(streamMatches(right.streams, preferences.streamInterest)) -
+      Number(streamMatches(left.streams, preferences.streamInterest));
     return streamMatchDiff === 0
       ? left.name.localeCompare(right.name)
       : streamMatchDiff;

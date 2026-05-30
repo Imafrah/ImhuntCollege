@@ -11,7 +11,7 @@ import reviewRoutes from "./routes/reviews.js";
 import scoreRoutes from "./routes/score.js";
 import shortlistRoutes from "./routes/shortlist.js";
 const app = express();
-const port = Number(process.env.PORT ?? 3000);
+const port = Number(process.env.PORT ?? 4000);
 const requestLogger = process.env.NODE_ENV === "production" ? "combined" : "dev";
 app.use(helmet());
 app.use(cors());

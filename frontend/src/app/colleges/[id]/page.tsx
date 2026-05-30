@@ -631,8 +631,11 @@ function AdmissionTab({ college }: { college: College }) {
     setPredictorError(null);
     setPredictorResult(null);
 
+    const exam = predictorForm.exam.toUpperCase().includes("JEE")
+      ? "JEE"
+      : predictorForm.exam;
     const params = new URLSearchParams({
-      exam: predictorForm.exam,
+      exam,
       percentile: predictorForm.percentile,
       category: predictorForm.category,
     });

@@ -429,6 +429,7 @@ function ComparePageContent() {
 
   useEffect(() => {
     let isMounted = true;
+    const timeout = window.setTimeout(fetchScores, 350);
 
     async function fetchScores() {
       try {
@@ -447,10 +448,9 @@ function ComparePageContent() {
       }
     }
 
-    fetchScores();
-
     return () => {
       isMounted = false;
+      window.clearTimeout(timeout);
     };
   }, [weights]);
 
