@@ -164,6 +164,19 @@ export const openApiDocument: Record<string, unknown> = {
         },
       },
     },
+    "/shortlist/{session_id}/{college_id}": {
+      delete: {
+        summary: "Remove a college from an anonymous session shortlist",
+        parameters: [
+          { name: "session_id", in: "path", required: true, schema: { type: "string" } },
+          { name: "college_id", in: "path", required: true, schema: { type: "integer", minimum: 1 } },
+        ],
+        responses: {
+          "200": { description: "Updated shortlist" },
+          "404": { description: "Session not found" },
+        },
+      },
+    },
     "/predictor/{college_id}": {
       get: {
         summary: "Predict admission probability from recent cutoffs",

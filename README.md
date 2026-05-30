@@ -55,6 +55,7 @@ Main routes are available with and without `/api`, including:
 | POST | `/api/score` |
 | POST | `/api/shortlist` |
 | GET | `/api/shortlist/:session_id` |
+| DELETE | `/api/shortlist/:session_id/:college_id` |
 | GET | `/api/predictor/:college_id` |
 | GET | `/api/openapi.json` |
 | GET | `/api/docs` |

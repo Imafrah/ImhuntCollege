@@ -35,7 +35,7 @@ export default function RootLayout({
               CollegeHunt
             </Link>
             <div className="flex items-center gap-6 text-sm font-medium text-gray-700">
-              <Link href="/colleges">Colleges</Link>
+              <Link href="/">Colleges</Link>
               <Link href="/compare">Compare</Link>
             </div>
           </nav>

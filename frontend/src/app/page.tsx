@@ -47,6 +47,43 @@ function sortColleges(colleges: College[], sort: CollegeFilters["sort"]) {
   });
 }
 
+function streamParam(stream: CollegeFilters["stream"]) {
+  if (stream === "All") {
+    return null;
+  }
+
+  return stream === "Medical" ? "Medicine" : stream;
+}
+
+function buildCollegeListPath(filters: CollegeFilters) {
+  const params = new URLSearchParams();
+  const stream = streamParam(filters.stream);
+
+  if (filters.q.trim()) {
+    params.set("q", filters.q.trim());
+  }
+
+  if (stream) {
+    params.set("stream", stream);
+  }
+
+  if (filters.city.trim()) {
+    params.set("city", filters.city.trim());
+  }
+
+  if (filters.type !== "All") {
+    params.set("type", filters.type);
+  }
+
+  if (filters.fees_max > 0) {
+    params.set("fees_max", String(filters.fees_max));
+  }
+
+  params.set("sort", filters.sort);
+
+  return `/api/colleges?${params.toString()}`;
+}
+
 function readUserPreferences(): UserPreferences | null {
   const storedValue = window.localStorage.getItem("user_preferences");
 
@@ -159,7 +196,7 @@ export default function Home() {
       setError(null);
 
       try {
-        const data = await apiFetch<College[]>("/api/colleges");
+        const data = await apiFetch<College[]>(buildCollegeListPath(filters));
 
         if (isMounted) {
           setColleges(data);
@@ -184,35 +221,10 @@ export default function Home() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [filters]);
 
   const filteredColleges = useMemo(() => {
-    const query = filters.q.trim().toLowerCase();
-    const city = filters.city.trim().toLowerCase();
-
-    const matches = colleges.filter((college) => {
-      const fee = getLowestFee(college);
-      const matchesQuery =
-        query.length === 0 ||
-        college.name.toLowerCase().includes(query) ||
-        college.city.toLowerCase().includes(query);
-      const matchesStream =
-        filters.stream === "All" || college.streams.includes(filters.stream);
-      const matchesCity =
-        city.length === 0 || college.city.toLowerCase().includes(city);
-      const matchesType = filters.type === "All" || college.type === filters.type;
-      const matchesFees = fee === null || fee <= filters.fees_max;
-
-      return (
-        matchesQuery &&
-        matchesStream &&
-        matchesCity &&
-        matchesType &&
-        matchesFees
-      );
-    });
-
-    return personalizeColleges(sortColleges(matches, filters.sort), preferences);
+    return personalizeColleges(sortColleges(colleges, filters.sort), preferences);
   }, [colleges, filters, preferences]);
 
   function updateFilters(nextFilters: Partial<CollegeFilters>) {

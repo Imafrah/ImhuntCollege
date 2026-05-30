@@ -112,10 +112,37 @@ export interface ScoreResult {
 
 export interface PredictorResult {
   probability: "high" | "medium" | "low";
+  rank_context: {
+    exam: string;
+    estimated_rank: number | null;
+    assumption: string;
+  } | null;
   cutoff_context: Array<{
     year: number;
     cutoff: number;
   }>;
+}
+
+export interface CareerTrend {
+  recruiter: string;
+  industry: string;
+  role_clusters: string[];
+  salary_band_lpa: {
+    min: number;
+    max: number;
+  };
+  growth_tag: "High Growth" | "Stable" | "Declining";
+}
+
+export interface CareerTrendsResult {
+  college_id: number;
+  college_name: string;
+  trends: CareerTrend[];
+  summary: {
+    high_growth_count: number;
+    stable_count: number;
+    declining_count: number;
+  };
 }
 
 export interface ReviewsResult {

@@ -119,6 +119,43 @@ router.post("/", async (req, res, next) => {
         next(error);
     }
 });
+router.delete("/:session_id/:college_id", async (req, res, next) => {
+    try {
+        const session = sessionParamSchema.safeParse({
+            session_id: req.params.session_id,
+        });
+        const college = z.coerce.number().int().positive().safeParse(req.params.college_id);
+        if (!session.success) {
+            res.status(400).json({
+                error: "Invalid session id",
+                details: session.error.flatten(),
+            });
+            return;
+        }
+        if (!college.success) {
+            res.status(400).json({ errors: { college_id: "college_id must be a positive integer" } });
+            return;
+        }
+        const existingSession = await prisma.shortlistSession.findUnique({
+            where: { id: session.data.session_id },
+            select: { id: true },
+        });
+        if (!existingSession) {
+            res.status(404).json({ error: "Session not found" });
+            return;
+        }
+        await prisma.shortlistItem.deleteMany({
+            where: {
+                session_id: session.data.session_id,
+                college_id: college.data,
+            },
+        });
+        res.json(await getShortlistSummaries(await getSessionCollegeIds(session.data.session_id)));
+    }
+    catch (error) {
+        next(error);
+    }
+});
 router.get("/:session_id", async (req, res, next) => {
     try {
         const parsed = sessionParamSchema.safeParse(req.params);

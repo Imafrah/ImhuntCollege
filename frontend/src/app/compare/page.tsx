@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { useShortlist } from "@/hooks/useShortlist";
 import { apiFetch } from "@/lib/api";
-import type { CompareResult } from "@/types/college";
+import type { CompareResult, ScoreResult } from "@/types/college";
 
 type CompareCollege = CompareResult["colleges"][number];
 
@@ -343,6 +343,17 @@ function scoreColleges(colleges: CompareCollege[], weights: Weights) {
   });
 }
 
+function scoreRequestBody(weights: Weights) {
+  return {
+    weights: {
+      placement: weights.placement / 100,
+      fees: weights.fees / 100,
+      location: weights.location / 100,
+    },
+    filters: {},
+  };
+}
+
 function buildComparePath(ids: string, weights: Weights) {
   const params = new URLSearchParams();
   params.set("ids", ids);
@@ -363,6 +374,7 @@ function ComparePageContent() {
     readWeights(searchParams),
   );
   const [result, setResult] = useState<CompareResult | null>(null);
+  const [scoreResults, setScoreResults] = useState<ScoreResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDifferencesOnly, setShowDifferencesOnly] = useState(false);
@@ -416,6 +428,33 @@ function ComparePageContent() {
   }, [ids]);
 
   useEffect(() => {
+    let isMounted = true;
+
+    async function fetchScores() {
+      try {
+        const data = await apiFetch<ScoreResult[]>("/api/score", {
+          method: "POST",
+          body: JSON.stringify(scoreRequestBody(weights)),
+        });
+
+        if (isMounted) {
+          setScoreResults(data);
+        }
+      } catch {
+        if (isMounted) {
+          setScoreResults([]);
+        }
+      }
+    }
+
+    fetchScores();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [weights]);
+
+  useEffect(() => {
     if (!ids) {
       return;
     }
@@ -427,13 +466,40 @@ function ComparePageContent() {
     }
   }, [ids, pathname, router, searchParams, weights]);
 
-  const scores = useMemo(() => {
+  const localScores = useMemo(() => {
     if (!result) {
       return [];
     }
 
     return scoreColleges(result.colleges, weights);
   }, [result, weights]);
+
+  const scores = useMemo(() => {
+    if (!result) {
+      return [];
+    }
+
+    const backendScores = result.colleges
+      .map((college) => {
+        const score = scoreResults.find(
+          (item) => item.college_id === college.id,
+        );
+
+        if (!score) {
+          return null;
+        }
+
+        return {
+          collegeId: college.id,
+          score: score.final_score,
+        };
+      })
+      .filter((item): item is { collegeId: number; score: number } => item !== null);
+
+    return backendScores.length === result.colleges.length
+      ? backendScores
+      : localScores;
+  }, [localScores, result, scoreResults]);
 
   const bestMatchId = useMemo(() => {
     const ranked = [...scores].sort((left, right) => {

@@ -14,6 +14,7 @@ import { useShortlist } from "@/hooks/useShortlist";
 import { apiFetch } from "@/lib/api";
 import type {
   AdmissionCutoff,
+  CareerTrendsResult,
   College,
   CutoffCategory,
   PredictorResult,
@@ -25,13 +26,13 @@ type DetailTab =
   | "Overview"
   | "Courses & Fees"
   | "Placements"
+  | "Career Trends"
   | "Reviews"
   | "Admission";
 
 type PredictorCategory = CutoffCategory;
-type PredictorExam = "JEE" | "CUET" | "NEET";
 type PredictorForm = {
-  exam: PredictorExam;
+  exam: string;
   percentile: string;
   category: PredictorCategory;
 };
@@ -40,12 +41,12 @@ const tabs: DetailTab[] = [
   "Overview",
   "Courses & Fees",
   "Placements",
+  "Career Trends",
   "Reviews",
   "Admission",
 ];
 
 const categories: CutoffCategory[] = ["GENERAL", "OBC", "SC", "ST"];
-const predictorExams: PredictorExam[] = ["JEE", "CUET", "NEET"];
 const currentYear = new Date().getFullYear();
 
 const reviewSchema = z.object({
@@ -302,15 +303,94 @@ function PlacementsTab({ college }: { college: College }) {
   );
 }
 
+function CareerTrendsTab({
+  careerTrends,
+}: {
+  careerTrends: CareerTrendsResult | null;
+}) {
+  if (!careerTrends) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-6">
+        <p className="text-sm font-medium text-gray-700">
+          Career trends are not available for this college yet.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-6">
+      <section className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-lg border border-gray-200 bg-white p-5">
+          <p className="text-sm font-medium text-gray-500">High growth</p>
+          <p className="mt-2 text-2xl font-bold text-gray-900">
+            {careerTrends.summary.high_growth_count}
+          </p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-5">
+          <p className="text-sm font-medium text-gray-500">Stable</p>
+          <p className="mt-2 text-2xl font-bold text-gray-900">
+            {careerTrends.summary.stable_count}
+          </p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-5">
+          <p className="text-sm font-medium text-gray-500">Declining</p>
+          <p className="mt-2 text-2xl font-bold text-gray-900">
+            {careerTrends.summary.declining_count}
+          </p>
+        </div>
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-2">
+        {careerTrends.trends.map((trend) => (
+          <article
+            key={trend.recruiter}
+            className="rounded-lg border border-gray-200 bg-white p-6"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display text-lg font-bold text-gray-900">
+                  {trend.recruiter}
+                </h2>
+                <p className="mt-1 text-sm text-gray-600">{trend.industry}</p>
+              </div>
+              <span className="rounded-full border border-gray-300 px-3 py-1 text-xs font-bold text-gray-700">
+                {trend.growth_tag}
+              </span>
+            </div>
+            <p className="mt-5 text-sm font-bold text-gray-900">
+              {trend.salary_band_lpa.min}-{trend.salary_band_lpa.max} LPA
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {trend.role_clusters.map((role) => (
+                <span
+                  key={role}
+                  className="rounded-full border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700"
+                >
+                  {role}
+                </span>
+              ))}
+            </div>
+          </article>
+        ))}
+      </section>
+    </div>
+  );
+}
+
 function ReviewsTab({
   collegeId,
   initialReviews,
+  initialTotal,
+  aggregateRatings,
 }: {
   collegeId: number;
   initialReviews: Review[];
+  initialTotal: number;
+  aggregateRatings: ReviewsResult["aggregate_ratings"];
 }) {
   const [reviews, setReviews] = useState<Review[]>(initialReviews);
-  const [total, setTotal] = useState(initialReviews.length);
+  const [total, setTotal] = useState(initialTotal);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -335,6 +415,11 @@ function ReviewsTab({
     },
   });
   const bodyLength = watch("body").length;
+
+  useEffect(() => {
+    setReviews(initialReviews);
+    setTotal(initialTotal);
+  }, [initialReviews, initialTotal]);
 
   async function loadMoreReviews() {
     setIsLoadingMore(true);
@@ -371,6 +456,15 @@ function ReviewsTab({
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_0.9fr]">
       <section className="grid gap-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-5">
+          <p className="text-sm font-bold text-gray-900">
+            Approved reviews: {total}
+          </p>
+          <p className="mt-1 text-sm text-gray-600">
+            Average overall rating:{" "}
+            {aggregateRatings.rating_overall?.toFixed(1) ?? "Not available"}
+          </p>
+        </div>
         {reviews.map((review) => (
           <article
             key={review.id}
@@ -515,8 +609,11 @@ function AdmissionCard({
 }
 
 function AdmissionTab({ college }: { college: College }) {
+  const examOptions = Array.from(
+    new Set((college.cutoffs ?? []).map((cutoff) => cutoff.exam)),
+  );
   const [predictorForm, setPredictorForm] = useState<PredictorForm>({
-    exam: "JEE",
+    exam: examOptions.find((exam) => exam.toUpperCase().includes("JEE")) ?? examOptions[0] ?? "JEE",
     percentile: "92",
     category: "GENERAL",
   });
@@ -525,7 +622,9 @@ function AdmissionTab({ college }: { college: College }) {
   const [predictorError, setPredictorError] = useState<string | null>(null);
   const [isPredicting, setIsPredicting] = useState(false);
   const cutoffs = college.cutoffs ?? [];
-  const years = [2023, 2024];
+  const years = Array.from(new Set(cutoffs.map((cutoff) => cutoff.year))).sort(
+    (left, right) => right - left,
+  );
 
   async function runPredictor() {
     setIsPredicting(true);
@@ -594,12 +693,12 @@ function AdmissionTab({ college }: { college: College }) {
               onChange={(event) =>
                 setPredictorForm((current) => ({
                   ...current,
-                  exam: event.target.value as PredictorExam,
+                  exam: event.target.value,
                 }))
               }
               className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent"
             >
-              {predictorExams.map((exam) => (
+              {(examOptions.length > 0 ? examOptions : ["JEE"]).map((exam) => (
                 <option key={exam} value={exam}>
                   {exam}
                 </option>
@@ -660,6 +759,19 @@ function AdmissionTab({ college }: { college: College }) {
               </div>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
+              {predictorResult.rank_context ? (
+                <div className="rounded-lg border border-gray-200 bg-white p-4 md:col-span-3">
+                  <p className="text-sm font-bold text-gray-900">
+                    Estimated rank:{" "}
+                    {predictorResult.rank_context.estimated_rank?.toLocaleString(
+                      "en-IN",
+                    ) ?? "Not available"}
+                  </p>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {predictorResult.rank_context.assumption}
+                  </p>
+                </div>
+              ) : null}
               {predictorResult.cutoff_context.map((item) => (
                 <div
                   key={item.year}
@@ -688,7 +800,19 @@ export default function CollegeDetailPage() {
   const params = useParams<{ id: string }>();
   const collegeId = Number(params.id);
   const [college, setCollege] = useState<College | null>(null);
+  const [careerTrends, setCareerTrends] = useState<CareerTrendsResult | null>(
+    null,
+  );
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewTotal, setReviewTotal] = useState(0);
+  const [aggregateRatings, setAggregateRatings] = useState<
+    ReviewsResult["aggregate_ratings"]
+  >({
+    rating_overall: null,
+    rating_placement: null,
+    rating_faculty: null,
+    rating_infra: null,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<DetailTab>("Overview");
@@ -714,10 +838,16 @@ export default function CollegeDetailPage() {
             `/api/colleges/${collegeId}/reviews?limit=5&offset=0`,
           ),
         ]);
+        const trendsData = await apiFetch<CareerTrendsResult>(
+          `/api/colleges/${collegeId}/career-trends`,
+        ).catch(() => null);
 
         if (isMounted) {
           setCollege(collegeData);
           setReviews(reviewsData.reviews);
+          setReviewTotal(reviewsData.total);
+          setAggregateRatings(reviewsData.aggregate_ratings);
+          setCareerTrends(trendsData);
         }
       } catch (fetchError) {
         if (isMounted) {
@@ -761,12 +891,23 @@ export default function CollegeDetailPage() {
       return <PlacementsTab college={college} />;
     }
 
+    if (activeTab === "Career Trends") {
+      return <CareerTrendsTab careerTrends={careerTrends} />;
+    }
+
     if (activeTab === "Reviews") {
-      return <ReviewsTab collegeId={college.id} initialReviews={reviews} />;
+      return (
+        <ReviewsTab
+          collegeId={college.id}
+          initialReviews={reviews}
+          initialTotal={reviewTotal}
+          aggregateRatings={aggregateRatings}
+        />
+      );
     }
 
     return <AdmissionTab college={college} />;
-  }, [activeTab, college, reviews]);
+  }, [activeTab, aggregateRatings, careerTrends, college, reviewTotal, reviews]);
 
   if (isLoading) {
     return (
